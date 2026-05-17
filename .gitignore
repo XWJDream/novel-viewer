@@ -1,5 +1,28 @@
 node_modules/
-.env
 *.log
 .DS_Store
 Thumbs.db
+
+# 环境变量与密钥
+.env
+.env.*
+*.env
+.env.local
+.env.*.local
+
+# 配置文件（可能包含密钥）
+config.json
+config.local.json
+secrets.json
+credentials.json
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+
+# IDE / 编辑器
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
