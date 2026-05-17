@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小说阅读器</title>
+<style>
+:root {
+  --bg: #faf8f5;
+  --bg-sidebar: #f0ede8;
+  --bg-hover: #e8e4de;
+  --bg-active: #ddd8d0;
+  --text: #2c2c2c;
+  --text-secondary: #666;
+  --accent: #8b4513;
+  --accent-light: #a0632b;
+  --border: #d5d0c8;
+  --shadow: rgba(0,0,0,0.08);
+  --search-bg: #fff;
+  --highlight: #fff3cd;
+  --toolbar-bg: #f5f2ed;
+  --card-bg: #fff;
+}
+.dark {
+  --bg: #1a1a2e;
+  --bg-sidebar: #16213e;
+  --bg-hover: #1f2b47;
+  --bg-active: #253554;
+  --text: #e0e0e0;
+  --text-secondary: #999;
+  --accent: #d4a574;
+  --accent-light: #e0b88a;
+  --border: #2a3a5c;
+  --shadow: rgba(0,0,0,0.3);
+  --search-bg: #1f2b47;
+  --highlight: #3d3520;
+  --toolbar-bg: #16213e;
+  --card-bg: #1f2b47;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  transition: background 0.3s, color 0.3s;
+}
+/* Sidebar */
+.sidebar {
+  width: 300px;
+  min-width: 300px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  transition: background 0.3s;
+}
+.sidebar-header {
+  padding: 20px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+.search-box {
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--search-bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-box input:focus { border-color: var(--accent); }
+.search-box svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  stroke: var(--text-secondary);
+}
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.sidebar-content::-webkit-scrollbar { width: 6px; }
+.sidebar-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.category { margin-bottom: 4px; }
+.category-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  transition: color 0.2s;
+}
+.category-header:hover { color: var(--text); }
+.category-header .arrow {
+  margin-right: 8px;
+  font-size: 10px;
+  transition: transform 0.2s;
+  display: inline-block;
+  width: 12px;
+}
+.category-header.collapsed .arrow { transform: rotate(-90deg); }
+.category-header .count {
+  margin-left: auto;
+  background: var(--border);
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.category-files { overflow: hidden; transition: max-height 0.3s ease; }
+.category-files.collapsed { max-height: 0 !important; }
+.file-item {
+  padding: 8px 16px 8px 36px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  transition: background 0.15s, color 0.15s;
+  border-left: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.file-item:hover { background: var(--bg-hover); }
+.file-item.active {
+  background: var(--bg-active);
+  border-left-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.file-item .file-icon {
+  font-size: 13px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+.file-item .file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-item .file-size {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.file-item.search-hidden { display: none; }
+/* Main content */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  padding: 10px 24px;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.toolbar-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toolbar-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.15s;
+}
+.toolbar-btn:hover { border-color: var(--accent); color: var(--accent); }
+.toolbar-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.toolbar-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+  scroll-behavior: smooth;
+}
+.content-area::-webkit-scrollbar { width: 8px; }
+.content-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.content-inner {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 32px 80px;
+}
+.content-inner h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+  letter-spacing: 2px;
+}
+.content-inner p {
+  font-size: 16px;
+  line-height: 1.9;
+  margin-bottom: 16px;
+  text-indent: 2em;
+  text-align: justify;
+}
+.content-inner .no-indent { text-indent: 0; }
+/* Chapter nav */
+.chapter-nav {
+  display: flex;
+  gap: 12px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.chapter-nav-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center;
+  transition: all 0.15s;
+}
+.chapter-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+.chapter-nav-btn:disabled { opacity: 0.4; cursor: default; }
+.chapter-nav-btn:disabled:hover { border-color: var(--border); color: var(--text); }
+/* Progress bar */
+.progress-bar {
+  position: fixed;
+  bottom: 0;
+  left: 300px;
+  right: 0;
+  height: 3px;
+  background: var(--border);
+  z-index: 100;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0;
+  transition: width 0.1s;
+}
+/* Welcome screen */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  gap: 16px;
+}
+.welcome-icon { font-size: 64px; opacity: 0.3; }
+.welcome-text { font-size: 18px; font-weight: 500; }
+.welcome-hint { font-size: 14px; opacity: 0.7; }
+/* Search highlight */
+mark {
+  background: var(--highlight);
+  color: var(--text);
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+/* Full-text search results overlay */
+.search-results {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 200;
+  box-shadow: 0 8px 24px var(--shadow);
+  margin-top: 4px;
+}
+.search-results.show { display: block; }
+.search-result-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  transition: background 0.15s;
+}
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: var(--bg-hover); }
+.search-result-item .result-file { font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+.search-result-item .result-context { color: var(--text-secondary); line-height: 1.5; }
+.search-result-item mark { font-weight: 600; }
+/* Image display */
+.novel-image {
+  max-width: 300px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow);
+  margin: 16px 0;
+}
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+}
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Folder picker */
+.folder-picker {
+  margin-bottom: 10px;
+}
+.folder-path {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--search-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.2s;
+  word-break: break-all;
+  line-height: 1.4;
+}
+.folder-path:hover { border-color: var(--accent); }
+.folder-path .folder-icon { flex-shrink: 0; font-size: 14px; }
+.folder-path .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-path .folder-change {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--accent);
+  padding: 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.folder-path:hover .folder-change { opacity: 1; }
+.folder-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+}
+.folder-modal-overlay.show { display: flex; }
+.folder-modal {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 24px;
+  width: 500px;
+  max-width: 90vw;
+  box-shadow: 0 16px 48px var(--shadow);
+}
+.folder-modal h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.folder-modal input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--search-bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 8px;
+}
+.folder-modal input:focus { border-color: var(--accent); }
+.folder-modal .modal-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.folder-modal .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.folder-modal .modal-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  transition: all 0.15s;
+}
+.folder-modal .modal-btn:hover { border-color: var(--accent); }
+.folder-modal .modal-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.folder-modal .modal-btn.primary:hover { opacity: 0.9; }
+.folder-modal .modal-error {
+  color: #e74c3c;
+  font-size: 13px;
+  margin-bottom: 8px;
+  display: none;
+}
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { width: 260px; min-width: 260px; }
+  .content-inner { padding: 24px 16px 60px; }
+  .progress-bar { left: 260px; }
+}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-title" id="sidebarTitle">TXT 阅读器</div>
+    <div class="folder-picker">
+      <div class="folder-path" onclick="showFolderModal()" id="folderPathDisplay">
+        <span class="folder-icon">📁</span>
+        <span class="folder-name" id="folderName">加载中...</span>
+        <span class="folder-change">更换</span>
+      </div>
+    </div>
+    <div class="search-box" style="position:relative">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="搜索文件名或内容..." />
+      <div class="search-results" id="searchResults"></div>
+    </div>
+  </div>
+  <div class="sidebar-content" id="sidebarContent">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+</div>
+<!-- Folder picker modal -->
+<div class="folder-modal-overlay" id="folderModal">
+  <div class="folder-modal">
+    <h3>选择文件夹</h3>
+    <input type="text" id="folderInput" placeholder="输入文件夹路径，例如 E:\my-novels" />
+    <div class="modal-error" id="folderError"></div>
+    <div class="modal-hint">输入包含 txt 文件的文件夹路径，支持绝对路径</div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="hideFolderModal()">取消</button>
+      <button class="modal-btn primary" onclick="applyFolder()">打开</button>
+    </div>
+  </div>
+</div>
+<div class="main">
+  <div class="toolbar">
+    <div class="toolbar-title" id="toolbarTitle">小说阅读器</div>
+    <button class="toolbar-btn" id="btnFontDown" title="缩小字体">A-</button>
+    <button class="toolbar-btn" id="btnFontUp" title="放大字体">A+</button>
+    <div class="toolbar-sep"></div>
+    <button class="toolbar-btn" id="btnTheme" title="切换主题">🌙</button>
+  </div>
+  <div class="content-area" id="contentArea">
+    <div class="welcome">
+      <div class="welcome-icon">📖</div>
+      <div class="welcome-text">选择左侧文件开始阅读</div>
+      <div class="welcome-hint">点击章节名即可查看内容</div>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-bar-fill" id="progressFill"></div></div>
+</div>
+
+<script>
+const state = {
+  files: [],
+  subDirs: [],
+  currentFile: null,
+  currentDir: '',
+  fontSize: 16,
+  dark: false,
+};
+
+// Load file list
+async function loadFiles() {
+  const res = await fetch('/api/files');
+  const data = await res.json();
+  if (data.error) {
+    document.getElementById('sidebarContent').innerHTML = `<div style="padding:20px;color:#e74c3c;text-align:center">${data.error}</div>`;
+    return;
+  }
+  state.files = data.files || [];
+  state.subDirs = data.subDirs || [];
+  state.currentDir = data.currentDir || '';
+  updateFolderDisplay();
+  renderSidebar();
+}
+
+function updateFolderDisplay() {
+  const dir = state.currentDir;
+  document.getElementById('folderName').textContent = dir;
+  document.getElementById('folderInput').value = dir;
+  // Use the folder name as sidebar title
+  const folderName = dir.split(/[/\\]/).filter(Boolean).pop() || 'TXT 阅读器';
+  document.getElementById('sidebarTitle').textContent = folderName;
+  document.title = folderName + ' - TXT 阅读器';
+}
+
+function showFolderModal() {
+  document.getElementById('folderModal').classList.add('show');
+  document.getElementById('folderInput').value = state.currentDir;
+  document.getElementById('folderInput').focus();
+  document.getElementById('folderInput').select();
+  document.getElementById('folderError').style.display = 'none';
+}
+
+function hideFolderModal() {
+  document.getElementById('folderModal').classList.remove('show');
+}
+
+async function applyFolder() {
+  const folder = document.getElementById('folderInput').value.trim();
+  if (!folder) return;
+
+  const errEl = document.getElementById('folderError');
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/set-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || '打开失败';
+      errEl.style.display = 'block';
+      return;
+    }
+    state.files = data.files || [];
+    state.subDirs = data.subDirs || [];
+    state.currentDir = data.currentDir || folder;
+    state.currentFile = null;
+    updateFolderDisplay();
+    renderSidebar();
+    hideFolderModal();
+    // Reset content area
+    document.getElementById('contentArea').innerHTML = `<div class="welcome">
+      <div class="welcome-icon">📖</div>
+      <div class="welcome-text">选择左侧文件开始阅读</div>
+      <div class="welcome-hint">点击文件名即可查看内容</div>
+    </div>`;
+    document.getElementById('toolbarTitle').textContent = 'TXT 阅读器';
+  } catch (e) {
+    errEl.textContent = '网络错误: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+// Enter key in folder input
+document.getElementById('folderInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') applyFolder();
+  if (e.key === 'Escape') hideFolderModal();
+});
+
+// Click overlay to close
+document.getElementById('folderModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) hideFolderModal();
+});
+
+// Render sidebar
+function renderSidebar() {
+  const container = document.getElementById('sidebarContent');
+  let html = '';
+
+  // Parent directory link
+  if (state.currentDir) {
+    const parentDir = state.currentDir.replace(/[/\\][^/\\]+$/, '');
+    if (parentDir && parentDir !== state.currentDir) {
+      html += `<div class="file-item" onclick="navigateTo('${parentDir.replace(/\\/g, '\\\\')}')" style="color:var(--accent)">
+        <span class="file-icon">⬆️</span>
+        <span class="file-name">上级目录</span>
+      </div>`;
+    }
+  }
+
+  // Subdirectories
+  if (state.subDirs && state.subDirs.length > 0) {
+    html += `<div class="category">
+      <div class="category-header" onclick="toggleCategory(this)">
+        <span class="arrow">▼</span>
+        <span>📁 子文件夹</span>
+        <span class="count">${state.subDirs.length}</span>
+      </div>
+      <div class="category-files" style="max-height:${state.subDirs.length * 40}px">`;
+    for (const dir of state.subDirs) {
+      html += `<div class="file-item" onclick="navigateTo(state.currentDir + '/' + '${dir.replace(/\\/g, '\\\\')}')">
+        <span class="file-icon">📁</span>
+        <span class="file-name">${dir}</span>
+      </div>`;
+    }
+    html += '</div></div>';
+  }
+
+  // Categorize files
+  const categories = {};
+  for (const f of state.files) {
+    if (!categories[f.category]) categories[f.category] = [];
+    categories[f.category].push(f);
+  }
+
+  // Smart category sorting: chapters first, then named groups, then "文件" last
+  const catNames = Object.keys(categories);
+  const chapterCats = catNames.filter(c => /章|回|节|卷/.test(c));
+  const settingCats = catNames.filter(c => /设定|资料|选题|封面|评估|报告|简评/.test(c));
+  const groupCats = catNames.filter(c => /^第\d+组$/.test(c));
+  const dateCats = catNames.filter(c => /\d{4}年/.test(c));
+  const otherCats = catNames.filter(c => !chapterCats.includes(c) && !settingCats.includes(c) && !groupCats.includes(c) && !dateCats.includes(c) && c !== '文件');
+  const sortedCats = [...settingCats, ...chapterCats, ...groupCats, ...dateCats, ...otherCats];
+  if (categories['文件']) sortedCats.push('文件');
+
+  function getCategoryIcon(cat) {
+    if (/章|回|节|卷/.test(cat)) return '📖';
+    if (/设定|资料|选题/.test(cat)) return '📋';
+    if (/封面/.test(cat)) return '🎨';
+    if (/评估|报告|简评/.test(cat)) return '📊';
+    if (/第\d+组/.test(cat)) return '📁';
+    if (/年/.test(cat)) return '📅';
+    if (cat === '文件') return '📄';
+    return '📄';
+  }
+
+  for (const cat of sortedCats) {
+    if (!categories[cat]) continue;
+    const files = categories[cat];
+    html += `<div class="category">
+      <div class="category-header" onclick="toggleCategory(this)">
+        <span class="arrow">▼</span>
+        <span>${getCategoryIcon(cat)} ${cat}</span>
+        <span class="count">${files.length}</span>
+      </div>
+      <div class="category-files" style="max-height:${files.length * 40}px">`;
+    for (const f of files) {
+      const sizeKB = (f.size / 1024).toFixed(1);
+      html += `<div class="file-item" data-file="${f.name}" onclick="loadFile('${f.name}')">
+        <span class="file-icon">📄</span>
+        <span class="file-name">${f.displayName}</span>
+        <span class="file-size">${sizeKB}K</span>
+      </div>`;
+    }
+    html += '</div></div>';
+  }
+
+  if (!html) {
+    html = '<div style="padding:20px;text-align:center;color:var(--text-secondary)">此文件夹为空</div>';
+  }
+  container.innerHTML = html;
+}
+
+async function navigateTo(dirPath) {
+  try {
+    const res = await fetch('/api/set-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder: dirPath }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || '打开失败');
+      return;
+    }
+    state.files = data.files || [];
+    state.subDirs = data.subDirs || [];
+    state.currentDir = data.currentDir || dirPath;
+    state.currentFile = null;
+    updateFolderDisplay();
+    renderSidebar();
+    document.getElementById('contentArea').innerHTML = `<div class="welcome">
+      <div class="welcome-icon">📖</div>
+      <div class="welcome-text">选择左侧文件开始阅读</div>
+      <div class="welcome-hint">点击文件名即可查看内容</div>
+    </div>`;
+    document.getElementById('toolbarTitle').textContent = 'TXT 阅读器';
+  } catch (e) {
+    alert('网络错误: ' + e.message);
+  }
+}
+
+function toggleCategory(header) {
+  header.classList.toggle('collapsed');
+  const files = header.nextElementSibling;
+  files.classList.toggle('collapsed');
+}
+
+// Load and display a file
+async function loadFile(name) {
+  const file = state.files.find(f => f.name === name);
+  if (!file) return;
+
+  state.currentFile = file;
+  document.getElementById('toolbarTitle').textContent = file.displayName;
+
+  // Update active state
+  document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+  const activeEl = document.querySelector(`.file-item[data-file="${name}"]`);
+  if (activeEl) activeEl.classList.add('active');
+
+  const area = document.getElementById('contentArea');
+  area.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const res = await fetch(`/api/file?name=${encodeURIComponent(name)}`);
+  const text = await res.text();
+
+  renderContent(text, file);
+}
+
+function renderContent(text, file) {
+  const area = document.getElementById('contentArea');
+  const lines = text.split('\n').filter(l => l.trim().length > 0);
+
+  // Check if this is a chapter file
+  const isChapter = /第\d+[章回节卷]/.test(file.name) || file.category === '正文章节';
+  const chapterNum = getChapterNum(file.name);
+
+  let html = '<div class="content-inner">';
+  html += `<h1>${file.displayName}</h1>`;
+
+  // Show cover images if available
+  if (file.name === '7-封面提示词') {
+    html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px">';
+    html += '<img class="novel-image" src="/img/mbx.png" alt="封面1" onerror="this.style.display=\'none\'">';
+    html += '<img class="novel-image" src="/img/rrsbx.png" alt="封面2" onerror="this.style.display=\'none\'">';
+    html += '</div>';
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Detect headings
+    if (isChapterHeading(trimmed)) {
+      html += `<p style="font-weight:700;font-size:${state.fontSize + 2}px;text-indent:0;margin:24px 0 16px;color:var(--accent)">${escapeHtml(trimmed)}</p>`;
+    } else if (isBulletPoint(trimmed)) {
+      html += `<p class="no-indent" style="padding-left:2em;margin-bottom:8px">${escapeHtml(trimmed)}</p>`;
+    } else if (isKeyValue(trimmed)) {
+      html += `<p class="no-indent" style="margin-bottom:8px"><strong>${escapeHtml(trimmed)}</strong></p>`;
+    } else {
+      html += `<p>${escapeHtml(trimmed)}</p>`;
+    }
+  }
+
+  // Chapter navigation
+  if (isChapter) {
+    const chapters = state.files.filter(f => /第\d+[章回节卷]/.test(f.name) || f.category === '正文章节');
+    const idx = chapters.findIndex(f => f.name === file.name);
+    if (chapters.length > 1) {
+      html += '<div class="chapter-nav">';
+      html += `<button class="chapter-nav-btn" ${idx <= 0 ? 'disabled' : ''} onclick="loadFile('${idx > 0 ? chapters[idx - 1].name : ''}')">← 上一章</button>`;
+      html += `<button class="chapter-nav-btn" ${idx >= chapters.length - 1 ? 'disabled' : ''} onclick="loadFile('${idx < chapters.length - 1 ? chapters[idx + 1].name : ''}')">下一章 →</button>`;
+      html += '</div>';
+    }
+  }
+
+  html += '</div>';
+  area.innerHTML = html;
+  area.scrollTop = 0;
+  updateFontSize();
+}
+
+function isChapterHeading(line) {
+  return /^第[一二三四五六七八九十百千\d]+[章节回]/.test(line) ||
+         /^Chapter\s+\d+/i.test(line) ||
+         /^\d+[\.、]\s*第/.test(line);
+}
+
+function isBulletPoint(line) {
+  return /^[-•·▪▸►●◆◇■□★☆→⇒※]/.test(line) ||
+         /^\d+[\.、]\s/.test(line) ||
+         /^[①②③④⑤⑥⑦⑧⑨⑩]/.test(line);
+}
+
+function isKeyValue(line) {
+  return /[:：]/.test(line) && line.length < 80 && !line.includes('。');
+}
+
+function getChapterNum(name) {
+  const m = name.match(/第(\d+)[章回节卷]/);
+  return m ? parseInt(m[1]) : 0;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Font size
+function updateFontSize() {
+  document.querySelectorAll('.content-inner p').forEach(p => {
+    p.style.fontSize = state.fontSize + 'px';
+    if (p.style.fontWeight === '700') {
+      p.style.fontSize = (state.fontSize + 2) + 'px';
+    }
+  });
+}
+
+document.getElementById('btnFontUp').addEventListener('click', () => {
+  if (state.fontSize < 28) { state.fontSize += 2; updateFontSize(); }
+});
+
+document.getElementById('btnFontDown').addEventListener('click', () => {
+  if (state.fontSize > 12) { state.fontSize -= 2; updateFontSize(); }
+});
+
+// Theme toggle
+document.getElementById('btnTheme').addEventListener('click', () => {
+  state.dark = !state.dark;
+  document.body.classList.toggle('dark', state.dark);
+  document.getElementById('btnTheme').textContent = state.dark ? '☀️' : '🌙';
+});
+
+// Progress bar
+document.getElementById('contentArea').addEventListener('scroll', function() {
+  const scrollTop = this.scrollTop;
+  const scrollHeight = this.scrollHeight - this.clientHeight;
+  const pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+});
+
+// Search
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+let searchTimeout;
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  const query = searchInput.value.trim();
+
+  // Filter sidebar
+  document.querySelectorAll('.file-item').forEach(el => {
+    const name = el.querySelector('.file-name').textContent;
+    el.classList.toggle('search-hidden', query && !name.includes(query));
+  });
+
+  // Full-text search with debounce
+  if (query.length >= 2) {
+    searchTimeout = setTimeout(() => fullTextSearch(query), 300);
+  } else {
+    searchResults.classList.remove('show');
+  }
+});
+
+async function fullTextSearch(query) {
+  const results = [];
+  for (const file of state.files) {
+    try {
+      const res = await fetch(`/api/file?name=${encodeURIComponent(file.name)}`);
+      const text = await res.text();
+      const lines = text.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes(query)) {
+          const start = Math.max(0, lines[i].indexOf(query) - 30);
+          const end = Math.min(lines[i].length, lines[i].indexOf(query) + query.length + 30);
+          let context = (start > 0 ? '...' : '') + lines[i].substring(start, end) + (end < lines[i].length ? '...' : '');
+          results.push({ file: file.displayName, fileName: file.name, line: i + 1, context });
+          if (results.length >= 20) break;
+        }
+      }
+      if (results.length >= 20) break;
+    } catch (e) {}
+  }
+
+  if (results.length === 0) {
+    searchResults.innerHTML = '<div class="search-result-item"><div class="result-context">未找到匹配内容</div></div>';
+  } else {
+    searchResults.innerHTML = results.map(r => {
+      const highlighted = r.context.replace(new RegExp(escapeRegex(query), 'g'), m => `<mark>${m}</mark>`);
+      return `<div class="search-result-item" onclick="loadFile('${r.fileName}');searchResults.classList.remove('show');searchInput.value=''">
+        <div class="result-file">${r.file} (第${r.line}行)</div>
+        <div class="result-context">${highlighted}</div>
+      </div>`;
+    }).join('');
+  }
+  searchResults.classList.add('show');
+}
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-box')) {
+    searchResults.classList.remove('show');
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === '/') {
+    e.preventDefault();
+    searchInput.focus();
+  }
+  if (e.key === 'Escape') {
+    searchResults.classList.remove('show');
+    searchInput.blur();
+  }
+});
+
+// Init
+loadFiles();
+</script>
+</body>
+</html>
